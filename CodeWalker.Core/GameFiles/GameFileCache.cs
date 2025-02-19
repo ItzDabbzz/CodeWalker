@@ -66,7 +66,7 @@ namespace CodeWalker.GameFiles
         public List<YmfFile> AllManifests { get; set; }
 
 
-        public bool EnableDlc { get; set; } = false;//true;//
+        public bool EnableDlc { get; set; } = true;//true;//
         public bool EnableMods { get; set; } = false;
 
         public List<string> DlcPaths { get; set; } = new List<string>();
