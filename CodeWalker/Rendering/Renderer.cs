@@ -1895,7 +1895,7 @@ namespace CodeWalker.Rendering
 
                 if (ent.IsMlo)
                 {
-                    if (renderinteriors && (ent.MloInstance != null) && !MapViewEnabled) //render Mlo child entities...
+                    if (renderinteriors && (ent.MloInstance != null)) //render Mlo child entities...
                     {
                         VisibleMlos.Add(ent);
                         renderworldentities.Add(ent);//collisions rendering needs this
@@ -2289,7 +2289,7 @@ namespace CodeWalker.Rendering
 
                     intent.IsVisible = true;
 
-                    if (!camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent))
+                    if (!camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent) && !camera.IsMapView && !camera.IsOrthographic)
                     {
                         continue; //frustum cull interior ents
                     }
@@ -2314,7 +2314,7 @@ namespace CodeWalker.Rendering
 
                         intent.IsVisible = true;
 
-                        if (!camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent))
+                        if (!camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent) && !camera.IsMapView && !camera.IsOrthographic)
                         {
                             continue; //frustum cull interior ents
                         }
