@@ -600,7 +600,7 @@ namespace CodeWalker.GameFiles
         public MloArchetype MloArch { get; set; }
         public CMloInstanceDef _Instance;
         public CMloInstanceDef Instance { get { return _Instance; } set { _Instance = value; } }
-        public uint[] defaultEntitySets { get; set; }
+        public MetaHash[] defaultEntitySets { get; set; }
 
         public YmapEntityDef[] Entities { get; set; }
         public MloInstanceEntitySet[] EntitySets { get; set; }
@@ -652,10 +652,17 @@ namespace CodeWalker.GameFiles
             {
                 for (var i = 0; i < defaultEntitySets.Length; i++)
                 {
-                    uint index = defaultEntitySets[i];
-                    if (index >= EntitySets.Length) continue;
-                    var instset = EntitySets[index];
-                    instset.Visible = true;
+                    MetaHash defentsets = defaultEntitySets[i];
+                    string defentsetsName = defentsets.ToString();
+
+                    for (var j = 0; j < EntitySets.Length; j++)
+                    {
+                        if (defentsetsName == EntitySets[j].EntitySet.Name)
+                        {
+                            EntitySets[j].Visible = true;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -731,7 +738,7 @@ namespace CodeWalker.GameFiles
                                 {
                                     var earch = rooment.Archetype;
                                     var pos = rooment._CEntityDef.position;
-                                    var ori = rooment.Orientation;
+                                    var ori = rooment._CEntityDef.rotation.ToQuaternion();
                                     Vector3 abmin = earch.BBMin * rooment.Scale; //entity box
                                     Vector3 abmax = earch.BBMax * rooment.Scale;
                                     c[0] = abmin;
@@ -742,9 +749,10 @@ namespace CodeWalker.GameFiles
                                     c[5] = new Vector3(abmax.X, abmin.Y, abmax.Z);
                                     c[6] = new Vector3(abmax.X, abmax.Y, abmin.Z);
                                     c[7] = abmax;
+                                    Vector3 center = (abmin + abmax) * 0.5f;
                                     for (int n = 0; n < 8; n++)
                                     {
-                                        Vector3 corn = ori.Multiply(c[n]) + pos;
+                                        Vector3 corn = ori.Multiply(c[n] - center) + center + pos;
                                         min = Vector3.Min(min, corn);
                                         max = Vector3.Max(max, corn);
                                     }
@@ -958,20 +966,16 @@ namespace CodeWalker.GameFiles
 
         public void UpdateDefaultEntitySets()
         {
-            var list = new List<uint>();
+            if (EntitySets == null) return;
+            var list = new List<MetaHash>();
 
-            if (EntitySets != null)
+            for (int i = 0; i < EntitySets.Length; i++)
             {
-                for (uint i = 0; i < EntitySets.Length; i++)
+                if (EntitySets[i].Visible)
                 {
-                    var entset = EntitySets[i];
-                    if (entset != null)
-                    {
-                        if (entset.Visible)
-                        {
-                            list.Add(i);
-                        }
-                    }
+                    string entsetName = EntitySets[i].EntitySet.Name;
+                    uint nameHash = JenkHash.GenHash(entsetName);
+                    list.Add(new MetaHash(nameHash));
                 }
             }
 
