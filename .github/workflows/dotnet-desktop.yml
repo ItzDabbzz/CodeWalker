@@ -12,7 +12,7 @@ jobs:
   build_and_release:
     runs-on: windows-latest
     env:
-      VERSION: ${{ github.ref_name#v }}
+      VERSION: ${{ github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -25,8 +25,12 @@ jobs:
         with:
           dotnet-version: '6.0.x'
           
-      - name: Set version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      - name: Strip leading 'v' from tag
+        shell: bash
+        run: |
+          # GITHUB_REF_NAME is e.g. "v0.0.2" (no "refs/tags/" prefix here)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       # 1. Restore with runtime
       - name: Restore packages for win-x64
