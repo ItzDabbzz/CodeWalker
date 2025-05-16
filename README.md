@@ -1,7 +1,7 @@
 <div align="center">
     <h1>CodeWalker by dexyfex</h1>
     This program is for viewing the contents of GTAV RPF archives.
-	This version is updated by ItzDabbzz & Other members contributing to the original repository
+	This version is updated by ItzDabbzz & Other members contributing to the original repository 🤍
 </div>
 
 ## Requirements:
