@@ -32,11 +32,19 @@ jobs:
       - name: Collect artifacts
         shell: bash
         run: |
-          mkdir artifacts
+          mkdir -p artifacts
+          # Copy binaries/configs
           find . -path '*/bin/Release/net48/*' \
             -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.config' \) \
             -exec cp {} artifacts/ \;
+          # Copy Notice.txt
           cp Notice.txt artifacts/
+          # Create & copy icons folder
+          mkdir -p artifacts/icons
+          cp -r icons/* artifacts/icons/
+          # Create & copy Shaders folder
+          mkdir -p artifacts/Shaders
+          cp -r Shaders/* artifacts/Shaders/
 
       # 4. Strip PDBs
       - name: Remove PDB files
