@@ -1,7 +1,4 @@
-name: Build & Release
-
-on:
-  push:
+on: push
 
 permissions:
   contents: write
@@ -11,19 +8,27 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1.1.0
 
-      - name: Restore NuGet packages
-        run: nuget restore CodeWalker.sln
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
 
-      - name: Build solution
+      # 1. Restore with runtime
+      - name: Restore packages for win-x64
+        run: dotnet restore CodeWalker.sln --runtime win-x64
+
+      # 2. Build with matching RuntimeIdentifier
+      - name: Build Release
         shell: cmd
-        run: msbuild CodeWalker.sln /p:Configuration=Release /m
+        run: msbuild CodeWalker.sln /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /m
 
+      # 3. Collect outputs + Notice.txt
       - name: Collect artifacts
         shell: bash
         run: |
@@ -33,15 +38,18 @@ jobs:
             -exec cp {} artifacts/ \;
           cp Notice.txt artifacts/
 
-      - name: Remove debug symbols
+      # 4. Strip PDBs
+      - name: Remove PDB files
         shell: bash
         run: rm -f artifacts/*.pdb
 
+      # 5. Zip
       - name: Archive artifacts
         shell: pwsh
         run: Compress-Archive -Path artifacts\* -DestinationPath release.zip
 
-      - name: Create GitHub Release
+      # 6. Release
+      - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -52,12 +60,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload release asset
+      - name: Upload asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release.zip
+          asset_path: release.zip
           asset_name: CodeWalker-${{ github.ref_name }}.zip
           asset_content_type: application/zip
