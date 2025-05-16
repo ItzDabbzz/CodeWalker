@@ -39,6 +39,8 @@ jobs:
             -exec cp {} artifacts/ \;
           # Copy Notice.txt
           cp Notice.txt artifacts/
+          # Copy README.md
+          cp README.md artifacts/
           # Create & copy icons folder
           mkdir -p artifacts/icons
           cp -r icons/* artifacts/icons/
