@@ -72,6 +72,7 @@ namespace CodeWalker.Project.Panels
                 EntityScaleXYTextBox.Text = string.Empty;
                 EntityScaleZTextBox.Text = string.Empty;
                 EntityParentIndexTextBox.Text = string.Empty;
+                parentEntityTextBox.Text = string.Empty;
                 EntityLodDistTextBox.Text = string.Empty;
                 EntityChildLodDistTextBox.Text = string.Empty;
                 EntityLodLevelComboBox.SelectedIndex = 0;// Math.Max(EntityLodLevelComboBox.FindString(), 0);
@@ -107,6 +108,7 @@ namespace CodeWalker.Project.Panels
                 EntityScaleXYTextBox.Text = FloatUtil.ToString(e.scaleXY);
                 EntityScaleZTextBox.Text = FloatUtil.ToString(e.scaleZ);
                 EntityParentIndexTextBox.Text = e.parentIndex.ToString();
+                parentEntityTextBox.Text = CurrentEntity.Parent?.Name ?? string.Empty;
                 EntityLodDistTextBox.Text = FloatUtil.ToString(e.lodDist);
                 EntityChildLodDistTextBox.Text = FloatUtil.ToString(e.childLodDist);
                 EntityLodLevelComboBox.SelectedIndex = Math.Max(EntityLodLevelComboBox.FindString(e.lodLevel.ToString()), 0);
@@ -474,15 +476,30 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentEntity == null) return;
+
             int pind = 0;
             int.TryParse(EntityParentIndexTextBox.Text, out pind);
+
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentEntity._CEntityDef.parentIndex != pind)
                 {
-                    CurrentEntity._CEntityDef.parentIndex = pind; //Needs more work for LOD linking!
+                    CurrentEntity._CEntityDef.parentIndex = pind;
+
                     if (CurrentMCEntity != null)
                         CurrentMCEntity._Data.parentIndex = pind;
+
+                    // Re-resolve the Parent entity based on new index
+                    if (CurrentEntity.Parent.Ymap?.AllEntities != null && pind >= 0 && pind < CurrentEntity.Parent.Ymap.AllEntities.Length)
+                    {
+                        var newParent = CurrentEntity.Parent.Ymap.AllEntities[pind];
+                        parentEntityTextBox.Text = newParent?.Name ?? string.Empty;
+                    }
+                    else
+                    {
+                        parentEntityTextBox.Text = string.Empty;
+                    }
+
                     ProjectItemChanged();
                 }
             }
