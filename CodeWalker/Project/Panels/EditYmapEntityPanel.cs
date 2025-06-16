@@ -154,7 +154,7 @@ namespace CodeWalker.Project.Panels
                     MiloFlagsTextBox.Text = string.Empty;
                 }
 
-
+                SetupParentEntityAutoComplete();
                 populatingui = false;
 
 
@@ -812,5 +812,60 @@ namespace CodeWalker.Project.Panels
             }
         }
 
+        private void parentEntityTextBox_TextChanged(object sender, EventArgs e)
+        {
+            if (populatingui) return;
+            if (CurrentEntity == null) return;
+            if (CurrentEntity.Parent?.Ymap?.AllEntities == null) return;
+
+            string parentName = parentEntityTextBox.Text?.Trim();
+            if (string.IsNullOrEmpty(parentName))
+                return;
+
+            var entities = CurrentEntity.Parent.Ymap.AllEntities;
+            int newIndex = -1;
+
+            for (int i = 0; i < entities.Length; i++)
+            {
+                if (entities[i]?.Name == parentName)
+                {
+                    newIndex = i;
+                    break;
+                }
+            }
+
+            if (newIndex >= 0 && CurrentEntity._CEntityDef.parentIndex != newIndex)
+            {
+                lock (ProjectForm.ProjectSyncRoot)
+                {
+                    CurrentEntity._CEntityDef.parentIndex = newIndex;
+
+                    if (CurrentMCEntity != null)
+                        CurrentMCEntity._Data.parentIndex = newIndex;
+
+                    EntityParentIndexTextBox.Text = newIndex.ToString();
+
+                    ProjectItemChanged();
+                }
+            }
+        }
+        private void SetupParentEntityAutoComplete()
+        {
+            if (CurrentEntity?.Parent?.Ymap?.AllEntities == null) return;
+
+            var autoComplete = new AutoCompleteStringCollection();
+
+            foreach (var entity in CurrentEntity.Parent.Ymap.AllEntities)
+            {
+                if (!string.IsNullOrEmpty(entity?.Name))
+                {
+                    autoComplete.Add(entity.Name);
+                }
+            }
+
+            parentEntityTextBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            parentEntityTextBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            parentEntityTextBox.AutoCompleteCustomSource = autoComplete;
+        }
     }
 }

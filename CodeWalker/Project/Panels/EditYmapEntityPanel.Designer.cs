@@ -550,6 +550,7 @@
             this.parentEntityTextBox.Name = "parentEntityTextBox";
             this.parentEntityTextBox.Size = new System.Drawing.Size(155, 20);
             this.parentEntityTextBox.TabIndex = 36;
+            this.parentEntityTextBox.TextChanged += new System.EventHandler(this.parentEntityTextBox_TextChanged);
             // 
             // label20
             // 
