@@ -24,7 +24,7 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '6.0.x'
-          
+
       - name: Strip leading 'v' from tag
         shell: bash
         run: |
@@ -86,28 +86,28 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            
-            const draftRelease = releases.data.find(release => 
+
+            const draftRelease = releases.data.find(release =>
               release.draft && release.tag_name === context.ref.replace('refs/tags/', '')
             );
-            
+
             if (draftRelease) {
               await core.summary.addRaw(`Found draft release: ${draftRelease.name}`).write();
-              
+
               const fs = require('fs');
               fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=${draftRelease.id}\n`);
               fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_body=${draftRelease.body.replace(/\n/g, '%0A')}\n`);
               fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_name=${draftRelease.name}\n`);
-              
+
               return draftRelease.id;
             } else {
               await core.summary.addRaw('No draft release found, will create new release').write();
-              
+
               const fs = require('fs');
               fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=\n`);
               fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_body=\n`);
               fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_name=\n`);
-              
+
               return '';
             }
 
