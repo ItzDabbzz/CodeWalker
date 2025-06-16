@@ -10,21 +10,18 @@ permissions:
 
 jobs:
   build_and_release:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       VERSION: ${{ github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.1.0
-
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
-
+          dotnet-version: '8.0.404'
+          
       - name: Strip leading 'v' from tag
         shell: bash
         run: |
@@ -32,10 +29,10 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Restore NuGet packages
-        run: nuget restore CodeWalker.sln
+        run: dotnet restore CodeWalker.sln
 
       - name: Build Release
-        run: msbuild CodeWalker.sln /p:Configuration=Release /p:Platform="Any CPU" /m
+        run: dotnet build CodeWalker.sln --configuration Release --no-restore
 
       - name: Collect artifacts
         shell: bash
