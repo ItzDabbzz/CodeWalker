@@ -31,35 +31,47 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Restore packages for win-x64
-        run: dotnet restore CodeWalker.sln --runtime win-x64
+      - name: Restore NuGet packages
+        run: nuget restore CodeWalker.sln
 
       - name: Build Release
-        shell: cmd
-        run: msbuild CodeWalker.sln /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /m
+        run: msbuild CodeWalker.sln /p:Configuration=Release /p:Platform="Any CPU" /m
 
       - name: Collect artifacts
         shell: bash
         run: |
           mkdir -p artifacts
-          # Copy binaries/configs
+          # Copy binaries/configs from .NET Framework output
           find . -path '*/bin/Release/net48/*' \
             -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.config' \) \
             -exec cp {} artifacts/ \;
+          # If net48 folder doesn't exist, try the general Release folder
+          if [ ! "$(ls -A artifacts/*.exe 2>/dev/null)" ]; then
+            find . -path '*/bin/Release/*' \
+              -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.config' \) \
+              -not -path '*/ref/*' \
+              -exec cp {} artifacts/ \;
+          fi
           # Copy documentation files
           cp README.md artifacts/
           cp Readme_Src.txt artifacts/
           cp Notice.txt artifacts/
           # Create & copy icons folder
           mkdir -p artifacts/icons
-          cp -r icons/* artifacts/icons/
+          cp -r icons/* artifacts/icons/ 2>/dev/null || true
           # Create & copy Shaders folder
           mkdir -p artifacts/Shaders
-          cp -r Shaders/* artifacts/Shaders/
+          cp -r Shaders/* artifacts/Shaders/ 2>/dev/null || true
 
       - name: Remove PDB files
         shell: bash
         run: rm -f artifacts/*.pdb
+
+      - name: List artifacts (debug)
+        shell: bash
+        run: |
+          echo "Artifacts collected:"
+          ls -la artifacts/
 
       - name: Archive artifacts
         shell: pwsh
@@ -80,14 +92,22 @@ jobs:
             );
             
             if (draftRelease) {
-              core.setOutput('release_id', draftRelease.id);
-              core.setOutput('release_body', draftRelease.body);
-              core.setOutput('release_name', draftRelease.name);
+              await core.summary.addRaw(`Found draft release: ${draftRelease.name}`).write();
+              
+              const fs = require('fs');
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=${draftRelease.id}\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_body=${draftRelease.body.replace(/\n/g, '%0A')}\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_name=${draftRelease.name}\n`);
+              
               return draftRelease.id;
             } else {
-              core.setOutput('release_id', '');
-              core.setOutput('release_body', '');
-              core.setOutput('release_name', '');
+              await core.summary.addRaw('No draft release found, will create new release').write();
+              
+              const fs = require('fs');
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_body=\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_name=\n`);
+              
               return '';
             }
 
