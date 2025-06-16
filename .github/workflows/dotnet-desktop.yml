@@ -10,109 +10,83 @@ permissions:
 
 jobs:
   build_and_release:
-    runs-on: windows-2022
+    runs-on: windows-latest
     env:
       VERSION: ${{ github.ref_name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1.0
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.404'
+          dotnet-version: '6.0.x'
           
       - name: Strip leading 'v' from tag
         shell: bash
         run: |
+          # GITHUB_REF_NAME is e.g. "v0.0.2" (no "refs/tags/" prefix here)
           VERSION="${GITHUB_REF_NAME#v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+      # 1. Restore with runtime
+      - name: Restore packages for win-x64
+        run: dotnet restore CodeWalker.sln --runtime win-x64
 
-      - name: Restore NuGet packages
-        run: dotnet restore CodeWalker.sln
-
+      # 2. Build with matching RuntimeIdentifier
       - name: Build Release
-        run: dotnet build CodeWalker.sln --configuration Release --no-restore
+        shell: cmd
+        run: msbuild CodeWalker.sln /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /m
 
+      # 3. Collect outputs + Notice.txt
       - name: Collect artifacts
         shell: bash
         run: |
           mkdir -p artifacts
-          # Copy binaries/configs from .NET Framework output
+          # Copy binaries/configs
           find . -path '*/bin/Release/net48/*' \
             -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.config' \) \
             -exec cp {} artifacts/ \;
-          # If net48 folder doesn't exist, try the general Release folder
-          if [ ! "$(ls -A artifacts/*.exe 2>/dev/null)" ]; then
-            find . -path '*/bin/Release/*' \
-              -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.config' \) \
-              -not -path '*/ref/*' \
-              -exec cp {} artifacts/ \;
-          fi
-          # Copy documentation files
-          cp README.md artifacts/
-          cp Readme_Src.txt artifacts/
+          # Copy Notice.txt
           cp Notice.txt artifacts/
+          # Copy README.md
+          cp README.md artifacts/
           # Create & copy icons folder
           mkdir -p artifacts/icons
-          cp -r icons/* artifacts/icons/ 2>/dev/null || true
+          cp -r icons/* artifacts/icons/
           # Create & copy Shaders folder
           mkdir -p artifacts/Shaders
-          cp -r Shaders/* artifacts/Shaders/ 2>/dev/null || true
-
+          cp -r Shaders/* artifacts/Shaders/
+      # 4. Strip PDBs
       - name: Remove PDB files
         shell: bash
         run: rm -f artifacts/*.pdb
 
-      - name: List artifacts (debug)
-        shell: bash
-        run: |
-          echo "Artifacts collected:"
-          ls -la artifacts/
-
+      # 5. Zip
       - name: Archive artifacts
         shell: pwsh
         run: Compress-Archive -Path artifacts\* -DestinationPath release.zip
 
-      - name: Get Release Draft
-        id: get_release
-        uses: actions/github-script@v7
+      # 6. Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          script: |
-            const releases = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-
-            const draftRelease = releases.data.find(release =>
-              release.draft && release.tag_name === context.ref.replace('refs/tags/', '')
-            );
-
-            if (draftRelease) {
-              await core.summary.addRaw(`Found draft release: ${draftRelease.name}`).write();
-
-              const fs = require('fs');
-              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=${draftRelease.id}\n`);
-              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_body=${draftRelease.body.replace(/\n/g, '%0A')}\n`);
-              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_name=${draftRelease.name}\n`);
-
-              return draftRelease.id;
-            } else {
-              await core.summary.addRaw('No draft release found, will create new release').write();
-
-              const fs = require('fs');
-              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=\n`);
-              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_body=\n`);
-              fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_name=\n`);
-
-              return '';
-            }
-
-      - name: Publish Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release.zip
-          name: ${{ steps.get_release.outputs.release_name || format('CodeWalker-Dabz-v{0}', env.VERSION) }}
-          body: ${{ steps.get_release.outputs.release_body || 'Release build' }}
+          tag_name: ${{ env.VERSION }}
+          release_name: Release v${{ env.VERSION }}
           draft: false
           prerelease: false
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release.zip
+          asset_name: CodeWalker-Dabz-v${{ env.VERSION }}.zip
+          asset_content_type: application/zip
